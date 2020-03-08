@@ -131,6 +131,7 @@ save_memory_data saved_memory;
 static cothread_t game_thread;
 cothread_t retro_thread;
 
+int input_method_raw;
 int astick_deadzone;
 int astick_sensitivity;
 int r_cbutton;
@@ -220,6 +221,7 @@ extern struct
 // these instead for input_plugin to read.
 int pad_pak_types[4];
 int pad_present[4] = {1, 1, 1, 1};
+int pad_raw[4] = {0, 0, 0, 0};
 
 static void n64DebugCallback(void* aContext, int aLevel, const char* aMessage)
 {
@@ -362,6 +364,8 @@ static void setup_variables(void)
             "Framerate; Original|Fullspeed" },
         { CORE_NAME "-virefresh",
             "VI Refresh (Overclock); Auto|1500|2200" },
+        { CORE_NAME "-input-method-raw",
+            "Controller Input Method; Regular|Raw" },
         { CORE_NAME "-astick-deadzone",
            "Analog Deadzone (percent); 15|20|25|30|0|5|10"},
         { CORE_NAME "-astick-sensitivity",
@@ -1110,6 +1114,13 @@ static void update_variables(bool startup)
        }
 #endif // HAVE_THR_AL
 
+        var.key = CORE_NAME "-input-method-raw";
+        var.value = NULL;
+        if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        {
+            input_method_raw = !strcmp(var.value, "Regular") ? 0 : 1;
+        }
+
        var.key = CORE_NAME "-astick-deadzone";
        var.value = NULL;
        if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
@@ -1482,7 +1493,7 @@ void retro_run (void)
 {
     libretro_swap_buffer = false;
     static bool updated = false;
-    
+
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated) {
        update_variables(false);
        update_controllers();
@@ -1584,23 +1595,27 @@ void retro_set_controller_port_device(unsigned in_port, unsigned device) {
         switch(device)
         {
             case RETRO_DEVICE_NONE:
-               if (controller[in_port].control){
-                   controller[in_port].control->Present = 0;
-                   break;
-               } else {
-                   pad_present[in_port] = 0;
-                   break;
-               }
+                if (controller[in_port].control){
+                    controller[in_port].control->Present = 0;
+                    controller[in_port].control->RawData = 0;
+                    break;
+                } else {
+                    pad_present[in_port] = 0;
+                    pad_raw[in_port] = input_method_raw;
+                    break;
+                }
 
             case RETRO_DEVICE_JOYPAD:
             default:
-               if (controller[in_port].control){
-                   controller[in_port].control->Present = 1;
-                   break;
-               } else {
-                   pad_present[in_port] = 1;
-                   break;
-               }
+                if (controller[in_port].control){
+                    controller[in_port].control->Present = 1;
+                    controller[in_port].control->RawData = input_method_raw;
+                    break;
+                } else {
+                    pad_present[in_port] = 1;
+                    pad_raw[in_port] = input_method_raw;
+                    break;
+                }
         }
     }
 }

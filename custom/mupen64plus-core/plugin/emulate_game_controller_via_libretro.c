@@ -40,6 +40,8 @@ extern retro_input_state_t input_cb;
 extern struct retro_rumble_interface rumble;
 extern int pad_pak_types[4];
 extern int pad_present[4];
+extern int pad_raw[4];
+extern int input_method_raw;
 extern int astick_deadzone;
 extern int astick_sensitivity;
 extern int r_cbutton;
@@ -142,18 +144,30 @@ static void inputGetKeys_default_descriptor(void)
 EXPORT m64p_error CALL inputPluginStartup(m64p_dynlib_handle CoreLibHandle, void *Context,
                                    void (*DebugCallback)(void *, int, const char *))
 {
-   if (environ_cb(RETRO_ENVIRONMENT_GET_INPUT_BITMASKS, NULL))
-      libretro_supports_bitmasks = true;
-   getKeys = inputGetKeys_default;
-   inputGetKeys_default_descriptor();
-   return M64ERR_SUCCESS;
+    if (input_method_raw)
+    {
+        raphnetPluginStartup(CoreLibHandle, Context, DebugCallback);
+        return M64ERR_SUCCESS;
+    }
+
+    if (environ_cb(RETRO_ENVIRONMENT_GET_INPUT_BITMASKS, NULL))
+        libretro_supports_bitmasks = true;
+    getKeys = inputGetKeys_default;
+    inputGetKeys_default_descriptor();
+    return M64ERR_SUCCESS;
 }
 
 EXPORT m64p_error CALL inputPluginShutdown(void)
 {
-   libretro_supports_bitmasks = false;
-   abort();
-   return 0;
+    if (input_method_raw)
+    {
+        raphnetPluginShutdown();
+        return 0;
+    }
+
+    libretro_supports_bitmasks = false;
+    abort();
+    return 0;
 }
 
 EXPORT m64p_error CALL inputPluginGetVersion(m64p_plugin_type *PluginType, int *PluginVersion, int *APIVersion, const char **PluginNamePtr, int *Capabilities)
@@ -204,6 +218,12 @@ static unsigned char DataCRC( unsigned char *Data, int iLenght )
 *******************************************************************/
 EXPORT void CALL inputControllerCommand(int Control, unsigned char *Command)
 {
+    if (input_method_raw)
+    {
+        raphnetControllerCommand(Control, Command);
+        return;
+    }
+
     unsigned char *Data = &Command[5];
 
     if (Control == -1)
@@ -310,6 +330,9 @@ static void inputGetKeys_reuse(int16_t analogX, int16_t analogY, int Control, BU
 
 void inputGetKeys_default( int Control, BUTTONS *Keys )
 {
+    if (input_method_raw)
+        return;
+
    unsigned i;
    bool cbuttons_mode = false;
    int16_t ret        = 0;
@@ -381,7 +404,6 @@ void inputGetKeys_default( int Control, BUTTONS *Keys )
    inputGetKeys_reuse(analogX, analogY, Control, Keys);
 }
 
-
 /******************************************************************
   Function: InitiateControllers
   Purpose:  This function initialises how each of the controllers
@@ -395,22 +417,23 @@ EXPORT void CALL inputInitiateControllers(CONTROL_INFO ControlInfo)
 {
     int i;
 
-    for( i = 0; i < 4; i++ )
+    for (i = 0; i < 4; i++)
     {
-       controller[i].control = ControlInfo.Controls + i;
-       controller[i].control->Present = pad_present[i];
-       controller[i].control->RawData = 0;
+        controller[i].control = ControlInfo.Controls + i;
+        controller[i].control->Present = pad_present[i];
+        controller[i].control->RawData = pad_raw[i];
 
-       if (pad_pak_types[i] == PLUGIN_MEMPAK)
-          controller[i].control->Plugin = PLUGIN_MEMPAK;
-       else if (pad_pak_types[i] == PLUGIN_RAW)
-          controller[i].control->Plugin = PLUGIN_RAW;
-       else
-          controller[i].control->Plugin = PLUGIN_NONE;
+        if (pad_pak_types[i] == PLUGIN_MEMPAK)
+            controller[i].control->Plugin = PLUGIN_MEMPAK;
+        else if (pad_pak_types[i] == PLUGIN_RAW)
+            controller[i].control->Plugin = PLUGIN_RAW;
+        else
+            controller[i].control->Plugin = PLUGIN_NONE;
     }
 
-   getKeys = inputGetKeys_default;
-   inputGetKeys_default_descriptor();
+    getKeys = inputGetKeys_default;
+    inputGetKeys_default_descriptor();
+    raphnetInitiateControllers(ControlInfo);
 }
 
 /******************************************************************
@@ -426,7 +449,10 @@ EXPORT void CALL inputInitiateControllers(CONTROL_INFO ControlInfo)
 *******************************************************************/
 EXPORT void CALL inputReadController(int Control, unsigned char *Command)
 {
-   inputControllerCommand(Control, Command);
+    if (input_method_raw)
+        raphnetReadController(Control, Command);
+    else
+        inputControllerCommand(Control, Command);
 }
 
 /******************************************************************
@@ -435,7 +461,11 @@ EXPORT void CALL inputReadController(int Control, unsigned char *Command)
   input:    none
   output:   none
 *******************************************************************/
-EXPORT void CALL inputRomClosed(void) { }
+EXPORT void CALL inputRomClosed(void)
+{
+    if (input_method_raw)
+        raphnetRomClosed();
+}
 
 /******************************************************************
   Function: RomOpen
@@ -444,8 +474,12 @@ EXPORT void CALL inputRomClosed(void) { }
   input:    none
   output:   none
 *******************************************************************/
-EXPORT int CALL inputRomOpen(void) { return 1; }
-
+EXPORT int CALL inputRomOpen(void)
+{
+    if (input_method_raw)
+        raphnetRomClosed();
+    return 1;
+}
 
 int egcvip_is_connected(void* opaque, enum pak_type* pak)
 {

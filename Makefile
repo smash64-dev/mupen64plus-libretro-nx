@@ -426,7 +426,7 @@ else
    TARGET := $(TARGET_NAME)_libretro.dll
    LDFLAGS += -shared -static-libgcc -static-libstdc++ -Wl,--version-script=$(LIBRETRO_DIR)/link.T -lwinmm -lgdi32
    GL_LIB := -lopengl32
-   
+
    ifeq ($(MSYSTEM),MINGW64)
       CC = x86_64-w64-mingw32-gcc
       CXX = x86_64-w64-mingw32-g++
@@ -453,7 +453,7 @@ ifeq ($(STATIC_LINKING), 1)
    ifneq (,$(findstring win,$(platform)))
       TARGET := $(TARGET:.dll=.lib)
    else ifneq ($(platform), $(filter $(platform), osx ios))
-      TARGET := $(TARGET:.dylib=.a)            
+      TARGET := $(TARGET:.dylib=.a)
    else
       TARGET := $(TARGET:.so=.a)
    endif
@@ -509,6 +509,9 @@ ifeq ($(platform), ios-arm64)
 else
 	LDFLAGS    += $(fpic) -O3 $(CPUOPTS) $(PLATCFLAGS) $(CPUFLAGS)
 endif
+
+LDFLAGS    += $(fpic) -O3 -lz -lpng $(CPUOPTS) $(PLATCFLAGS) $(CPUFLAGS)
+LDFLAGS    += -ludev -lrt -ldl -Lhidapi/linux
 
 all: $(TARGET)
 $(TARGET): $(OBJECTS)
