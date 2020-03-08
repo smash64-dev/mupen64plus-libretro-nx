@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/signal11/hidapi
+	branch = master
+	commit = a6a622ffb680c55da0de787ff93b80280498330f
+	parent = 14f6a0577caac1b2fd7147117b2e2d88fab781fe
+	method = merge
+	cmdver = 0.4.0
