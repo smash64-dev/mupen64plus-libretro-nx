@@ -1883,6 +1883,31 @@ void retro_unload_game(void)
 
     // Reset savestate job var
     retro_savestate_complete = false;
+
+    // Cleanup global path allocations (if any)
+    if(retro_dd_path_img)
+    {
+        free(retro_dd_path_img);
+        retro_dd_path_img = NULL;
+    }
+
+    if(retro_dd_path_rom)
+    {
+        free(retro_dd_path_rom);
+        retro_dd_path_rom = NULL;
+    }
+
+    if(retro_transferpak_rom_path)
+    {
+        free(retro_transferpak_rom_path);
+        retro_transferpak_rom_path = NULL;
+    }
+
+    if(retro_transferpak_ram_path)
+    {
+        free(retro_transferpak_ram_path);
+        retro_transferpak_ram_path = NULL;
+    }
 }
 
 void retro_run (void)

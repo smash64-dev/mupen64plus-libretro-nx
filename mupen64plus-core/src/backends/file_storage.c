@@ -65,7 +65,8 @@ int open_rom_file_storage(struct file_storage* fstorage, const char* filename)
 
     if (err == file_ok) {
         /* ! take ownsership of filename ! */
-        fstorage->filename = filename;
+        // Free'd in close_file_storage, base pointer free'd on change or unload game
+        fstorage->filename = strdup(filename);
     }
 
     return err;
